@@ -1,11 +1,13 @@
+from pathlib import Path
 import re
 import io
 import base64
 import ffmpeg
 import torchaudio
-from pathlib import Path
-# assume INPUT_DIR has been defined above
+
+# point this at your ComfyUI input folder
 INPUT_DIR = Path("/content/ComfyUI/input")
+
 class BikiAudioRecorderNode:
     @classmethod
     def INPUT_TYPES(cls):
@@ -18,6 +20,7 @@ class BikiAudioRecorderNode:
                     "max": 600,
                     "step": 1
                 }),
+                "save_to_disk": ("BOOL", {"default": False}),
             }
         }
 
@@ -26,7 +29,7 @@ class BikiAudioRecorderNode:
     FUNCTION = "process_audio"
     CATEGORY = "audio"
 
-    def process_audio(self, base64_data, record_duration_max):
+    def process_audio(self, base64_data, record_duration_max, save_to_disk):
         # 1) Decode & convert via FFmpeg
         raw = base64.b64decode(base64_data)
         try:
@@ -40,17 +43,20 @@ class BikiAudioRecorderNode:
             print("FFmpeg error:", e.stderr.decode())
             raise
 
-        # 2) Determine next recordN.wav filename
-        existing = list(INPUT_DIR.glob("record*.wav"))
-        nums = [int(p.stem.replace("record", "")) for p in existing if p.stem.startswith("record") and p.stem.replace("record","").isdigit()]
-        next_n = max(nums) + 1 if nums else 1
-        out_path = INPUT_DIR / f"record{next_n}.wav"
+        # 2) Optionally save to disk
+        if save_to_disk:
+            existing = list(INPUT_DIR.glob("record*.wav"))
+            nums = [
+                int(p.stem.replace("record", ""))
+                for p in existing
+                if p.stem.startswith("record") and p.stem.replace("record", "").isdigit()
+            ]
+            next_n = max(nums) + 1 if nums else 1
+            out_path = INPUT_DIR / f"record{next_n}.wav"
+            out_path.write_bytes(wav_bytes)
+            print(f"[BikiAudioRecorderNode] saved WAV to {out_path}")
 
-        # 3) Save to disk
-        out_path.write_bytes(wav_bytes)
-        print(f"[BikiAudioRecorderNode] saved WAV to {out_path}")
-
-        # 4) Load into torch
+        # 3) Load into torch
         buffer = io.BytesIO(wav_bytes)
         waveform, sr = torchaudio.load(buffer)
         if waveform.shape[0] == 1:
@@ -60,8 +66,10 @@ class BikiAudioRecorderNode:
         return (audio,)
 
     @classmethod
-    def IS_CHANGED(cls, base64_data, record_duration_max):
+    def IS_CHANGED(cls, base64_data, record_duration_max, save_to_disk):
         import hashlib
         m = hashlib.sha256()
         m.update(base64_data.encode())
+        # include save_to_disk in cache key so toggling it re-triggers
+        m.update(str(int(save_to_disk)).encode())
         return m.hexdigest()
