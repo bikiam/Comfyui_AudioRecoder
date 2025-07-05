@@ -42,7 +42,13 @@ class BikiAudioRecorderNode:
         except ffmpeg.Error as e:
             print("FFmpeg error:", e.stderr.decode())
             raise
-
+        import hashlib
+        fname = hashlib.sha256(base64_data.encode()).hexdigest() + ".wav"
+        save_path = os.path.join(folder_paths.INPUT_DIR, fname)
+        with open(save_path, "wb") as f:
+            f.write(output)
+        print(f"[BikiAudioRecorderNode] saved WAV to {save_path}")
+        
         output_buffer = io.BytesIO(output)
 
         waveform, sample_rate = torchaudio.load(output_buffer)
