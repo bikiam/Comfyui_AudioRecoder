@@ -18,7 +18,7 @@ class BikiAudioRecorderNode:
                 "record_duration_max": ("INT", {
                     "default": 10, "min": 1, "max": 600, "step": 1
                 }),
-                "save_audio":       ("BOOLEAN", {"default": False}),
+                "save_audio_to_input":       ("BOOLEAN", {"default": False}),
                 "file_prefix":      ("STRING",  {"default": "record", "multiline": False}),
             }
         }
@@ -28,7 +28,7 @@ class BikiAudioRecorderNode:
     FUNCTION = "process_audio"
     CATEGORY = "audio"
 
-    def process_audio(self, base64_data, record_duration_max, save_audio, file_prefix):
+    def process_audio(self, base64_data, record_duration_max, save_audio_to_input, file_prefix):
         # 1) Decode & convert via FFmpeg
         raw = base64.b64decode(base64_data)
         try:
@@ -67,10 +67,10 @@ class BikiAudioRecorderNode:
         return (audio,)
 
     @classmethod
-    def IS_CHANGED(cls, base64_data, record_duration_max, save_audio, file_prefix):
+    def IS_CHANGED(cls, base64_data, record_duration_max, save_audio_to_input, file_prefix):
         m = hashlib.sha256()
         m.update(base64_data.encode())
         # also include save_audio & prefix so changing them re-triggers the node
-        m.update(str(save_audio).encode())
+        m.update(str(save_audio_to_input).encode())
         m.update(file_prefix.encode())
         return m.hexdigest()
