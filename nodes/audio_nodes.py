@@ -14,12 +14,10 @@ class BikiAudioRecorderNode:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "base64_data":      ("STRING",  {"multiline": False}),
-                "record_duration_max": ("INT", {
-                    "default": 10, "min": 1, "max": 600, "step": 1
-                }),
-                "save_audio_to_input":       ("BOOLEAN", {"default": False}),
-                "file_prefix":      ("STRING",  {"default": "record", "multiline": False}),
+                "base64_data":        ("STRING",  {"multiline": False}),
+                "record_duration_max": ("INT",    {"default": 10, "min": 1, "max": 600, "step": 1}),
+                "save_audio_to_input": ("BOOLEAN", {"default": False}),
+                "file_prefix":        ("STRING",  {"default": "record", "multiline": False}),
             }
         }
 
@@ -43,7 +41,7 @@ class BikiAudioRecorderNode:
             raise
 
         # 2) Optionally save to disk
-        if save_audio:
+        if save_audio_to_input:
             # find existing files with this prefix
             existing = list(INPUT_DIR.glob(f"{file_prefix}*.wav"))
             nums = []
@@ -70,7 +68,7 @@ class BikiAudioRecorderNode:
     def IS_CHANGED(cls, base64_data, record_duration_max, save_audio_to_input, file_prefix):
         m = hashlib.sha256()
         m.update(base64_data.encode())
-        # also include save_audio & prefix so changing them re-triggers the node
+        # include save flag & prefix so changing them re-triggers the node
         m.update(str(save_audio_to_input).encode())
         m.update(file_prefix.encode())
         return m.hexdigest()
